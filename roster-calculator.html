@@ -63,7 +63,6 @@
 
   .params { display: grid; grid-template-columns: repeat(2, 1fr); gap: 14px; }
   .params-3 { display: grid; grid-template-columns: repeat(3, 1fr); gap: 14px; }
-  .params-2 { display: grid; grid-template-columns: repeat(2, 1fr); gap: 14px; margin-bottom: 16px; }
   .field label { display: block; font-size: 12px; color: #64748b; margin-bottom: 6px; letter-spacing: .5px; }
   .field input {
     width: 100%; padding: 11px 12px; border: 1.5px solid #dbe3ee; border-radius: 9px;
@@ -147,6 +146,19 @@
   .stat-val.blue { color: #2563eb; }
   .stat-val.orange { color: #ea580c; }
 
+  /* 站坑結果卡 */
+  .bay-card {
+    background: linear-gradient(135deg, #f0fdf4 0%, #dcfce7 100%);
+    border: 1.5px solid #bbf7d0; border-radius: 12px;
+    padding: 18px 20px; margin-bottom: 12px;
+  }
+  .bay-card.b { background: linear-gradient(135deg, #fdf4ff 0%, #f3e8ff 100%); border-color: #e9d5ff; }
+  .bay-card .label { font-size: 13px; color: #475569; letter-spacing: .5px; margin-bottom: 6px; }
+  .bay-card .value { font-size: 32px; font-weight: 700; color: #16a34a; line-height: 1.1; }
+  .bay-card.b .value { color: #a855f7; }
+  .bay-card .unit { font-size: 16px; font-weight: 600; margin-left: 4px; }
+  .bay-card .desc { font-size: 12px; color: #64748b; margin-top: 6px; line-height: 1.6; }
+
   .badge {
     display: inline-block; border-radius: 6px; padding: 3px 9px;
     font-size: 12.5px; font-weight: 700; letter-spacing: .5px; white-space: nowrap;
@@ -155,7 +167,6 @@
   .badge-s { background: #fff7ed; color: #ea580c; border: 1px solid #fed7aa; }
   .badge-a { background: #f0fdf4; color: #16a34a; border: 1px solid #bbf7d0; }
   .badge-b { background: #fdf4ff; color: #a855f7; border: 1px solid #e9d5ff; }
-  .badge-forced { background: #fef2f2; color: #dc2626; border: 1px solid #fecaca; }
 
   .max-h { max-height: 430px; overflow-y: auto; -webkit-overflow-scrolling: touch; }
 
@@ -234,7 +245,7 @@
   .export-opt.on .d { color: #22d3ee; }
 
   @media (max-width: 660px) {
-    .params, .params-2, .params-3 { grid-template-columns: 1fr; gap: 12px; }
+    .params, .params-3 { grid-template-columns: 1fr; gap: 12px; }
     .stats { grid-template-columns: repeat(2, 1fr); }
     header h1 { font-size: 21px; letter-spacing: 2px; }
     .actions { justify-content: stretch; }
@@ -304,16 +315,11 @@
 
   <div class="card">
     <h2 class="station-a" id="titleA">天堂島巴士總站 <span class="tag">雙向線</span></h2>
-    <div class="params-2">
+    <div class="params">
       <div class="field">
         <label id="lblDwellA">天堂島 總站停留（分鐘）</label>
         <input type="number" id="dwellA" value="10" min="0" step="1" inputmode="numeric" class="accent-a">
         <div class="hint">車到站後最少休息多久才可再開</div>
-      </div>
-      <div class="field">
-        <label id="lblCapA">天堂島 總站容量（輛）</label>
-        <input type="number" id="capA" value="2" min="0" step="1" inputmode="numeric" class="accent-a">
-        <div class="hint">最多同時停幾輛；滿了強制發車</div>
       </div>
     </div>
     <div class="tbl-scroll">
@@ -337,16 +343,11 @@
 
   <div class="card" id="cardB">
     <h2 class="station-b" id="titleB">寂靜天地 <span class="tag">雙向線</span></h2>
-    <div class="params-2">
+    <div class="params">
       <div class="field">
         <label id="lblDwellB">寂靜天地 總站停留（分鐘）</label>
         <input type="number" id="dwellB" value="10" min="0" step="1" inputmode="numeric" class="accent-b">
         <div class="hint">車到站後最少休息多久才可再開</div>
-      </div>
-      <div class="field">
-        <label id="lblCapB">寂靜天地 總站容量（輛）</label>
-        <input type="number" id="capB" value="1" min="0" step="1" inputmode="numeric" class="accent-b">
-        <div class="hint">最多同時停幾輛；滿了強制發車</div>
       </div>
     </div>
     <div class="tbl-scroll">
@@ -376,6 +377,21 @@
   </div>
 
   <div id="result" class="hidden">
+    <!-- 建議站坑 -->
+    <div class="card">
+      <h2>建議站坑數量</h2>
+      <div class="bay-card" id="bayCardA">
+        <div class="label" id="bayLabelA">天堂島巴士總站</div>
+        <div class="value"><span id="bayValA">–</span><span class="unit">個站坑</span></div>
+        <div class="desc" id="bayDescA">–</div>
+      </div>
+      <div class="bay-card b" id="bayCardB">
+        <div class="label" id="bayLabelB">寂靜天地</div>
+        <div class="value"><span id="bayValB">–</span><span class="unit">個站坑</span></div>
+        <div class="desc" id="bayDescB">–</div>
+      </div>
+    </div>
+
     <div class="stats">
       <div class="stat"><div class="stat-label">總班次</div><div class="stat-val" id="statTrips">–</div></div>
       <div class="stat"><div class="stat-label">總用車</div><div class="stat-val" id="statBuses">–</div></div>
@@ -403,7 +419,7 @@
       <div class="tbl-scroll max-h">
         <table>
           <thead>
-            <tr><th>#</th><th>發車時間</th><th>出發站</th><th>派出車輛</th><th>備註</th></tr>
+            <tr><th>#</th><th>發車時間</th><th>出發站</th><th>派出車輛</th></tr>
           </thead>
           <tbody id="tripBody"></tbody>
         </table>
@@ -421,17 +437,18 @@
     <h2>使用說明</h2>
     <div class="note">
       1. 先在「路線資料」填寫路線號碼、兩個總站名稱。<br>
-      2. <b class="a">A 總站</b>、<b class="b">B 總站</b> 各有自己的<b>停留時間</b>、<b>容量</b>、<b>時間表</b>。<br>
+      2. <b class="a">A 總站</b>、<b class="b">B 總站</b> 各有自己的<b>停留時間</b>、<b>時間表</b>。<br>
       3. 按「📋 批量導入」按鈕，彈出窗口貼上時間表（每行 <code>0500-0700@30</code>）。<br>
       4. <b>每個總站的最後一個時段會包含結束時間那一班</b>（例如 <code>1900-0100@30</code> 會開到 01:00）；中間時段不重複。<br>
-      5. <b>容量限制</b>：某總站已滿時，下一個班次即使車沒停夠也會被強制派出（派車表標 <span class="badge badge-forced">總站滿</span>）。<br>
-      6. 循環線模式下，B 總站卡片隱藏，A 總站的停留時間／容量即為整條循環線的唯一總站。<br>
+      5. 程式會模擬全日派車，並統計每個總站「同一時間最多有幾輛車同時停泊」→ 這就是<b>建議站坑數量</b>。<br>
+      6. 循環線模式下，B 總站卡片隱藏，A 總站的停留時間即為整條循環線的唯一總站。<br>
       7. 活躍時間低於全日 <b>備用車門檻</b> 的車標記為 <b>備用車</b>（S1、S2、S3…），其餘為 <b>正軌車</b>（1、2、3…）。
     </div>
   </div>
 
 </div>
 
+<!-- 導入模態框 -->
 <div id="importModal" class="modal-overlay hidden">
   <div class="modal">
     <div class="modal-header">
@@ -453,6 +470,7 @@
   </div>
 </div>
 
+<!-- 導出模態框 -->
 <div id="exportModal" class="modal-overlay hidden">
   <div class="modal">
     <div class="modal-header">
@@ -634,9 +652,9 @@
     }
   }
 
+  /* ============ 生成班次 ============ */
   function buildTrips(container, station) {
     var out = [], rows = container.rows;
-
     var segs = [];
     for (var i = 0; i < rows.length; i++) {
       var start = rows[i].querySelector(".p-start").value;
@@ -647,12 +665,10 @@
       if (e <= s) e += 1440;
       segs.push({ s: s, e: e, g: Math.round(gap) });
     }
-
     var lastIdx = -1, lastEnd = -1;
     for (var j = 0; j < segs.length; j++) {
       if (segs[j].e > lastEnd) { lastEnd = segs[j].e; lastIdx = j; }
     }
-
     for (var k = 0; k < segs.length; k++) {
       var seg = segs[k];
       if (k === lastIdx) {
@@ -668,10 +684,15 @@
     return out;
   }
 
-  function simulate(trips, mode, travelTime, dwellA, dwellB, capA, capB) {
+  /* ============ 模擬派車（無容量限制，統計站坑需求） ============ */
+  function simulate(trips, mode, travelTime, dwellA, dwellB) {
     var buses = new Map();
     var nextId = 1;
     var assignments = [];
+
+    // 每個總站「同一時間最多有幾輛車在停」
+    var maxParkA = 0;
+    var maxParkB = 0;
 
     function refreshArrivals(t) {
       buses.forEach(function (b) {
@@ -686,35 +707,40 @@
         }
       });
     }
-    function getIdleAt(station) {
-      var list = [];
+    function countIdleAt(station) {
+      var n = 0;
       buses.forEach(function (b) {
-        if (b.status === "idle" && b.location === station) list.push(b);
+        if (b.status === "idle" && b.location === station) n++;
       });
-      return list;
+      return n;
     }
 
     for (var i = 0; i < trips.length; i++) {
       var trip = trips[i];
       var t = trip.time;
       var S = trip.station;
-      var cap = S === "A" ? capA : capB;
 
       refreshArrivals(t);
-      var idleS = getIdleAt(S);
 
+      // 統計此刻兩個總站各有幾輛 idle（在停）
+      var nA = countIdleAt("A");
+      var nB = countIdleAt("B");
+      if (nA > maxParkA) maxParkA = nA;
+      if (nB > maxParkB) maxParkB = nB;
+
+      // 找該站已停夠時間的車（readyTime <= t）
       var pick = null;
-      var forced = false;
-
-      var readyList = idleS.filter(function (b) { return b.readyTime <= t; });
+      var readyList = [];
+      buses.forEach(function (b) {
+        if (b.status === "idle" && b.location === S && b.readyTime <= t) {
+          readyList.push(b);
+        }
+      });
       if (readyList.length > 0) {
         readyList.sort(function (a, b) { return a.readyTime - b.readyTime; });
         pick = readyList[0];
-      } else if (idleS.length >= cap) {
-        idleS.sort(function (a, b) { return a.arrivalTime - b.arrivalTime; });
-        pick = idleS[0];
-        forced = true;
       } else {
+        // 沒有 ready 的 → 派新車（無限容量，不再強制發車）
         var newBus = {
           id: nextId++, status: "idle", location: S,
           arrivalTime: t, readyTime: t,
@@ -727,8 +753,9 @@
       pick.last = t;
       pick.lastStation = S;
       pick.count++;
-      assignments.push({ t: t, station: S, busId: pick.id, forced: forced });
+      assignments.push({ t: t, station: S, busId: pick.id });
 
+      // 出發 → 路上
       var dest, etaTime;
       if (mode === "circular") { dest = "A"; etaTime = t + travelTime; }
       else { dest = S === "A" ? "B" : "A"; etaTime = t + travelTime; }
@@ -737,9 +764,15 @@
       pick.etaLocation = dest;
     }
 
-    return { assignments: assignments, busMap: buses };
+    return {
+      assignments: assignments,
+      busMap: buses,
+      maxParkA: maxParkA,
+      maxParkB: maxParkB
+    };
   }
 
+  /* ============ 分類 ============ */
   function classify(busList, totalSpan, thresholdPct) {
     var limit = totalSpan * (thresholdPct / 100);
     busList.forEach(function (b) {
@@ -762,6 +795,35 @@
     var nameB = $("nameB").value.trim() || "B 總站";
     if (currentMode === "circular") return nameA;
     return station === "A" ? nameA : nameB;
+  }
+
+  /* ============ 渲染 ============ */
+  function renderBayCards(maxParkA, maxParkB, trips) {
+    var nameA = getStationName("A");
+    var nameB = getStationName("B");
+
+    // A 站
+    $("bayLabelA").textContent = nameA;
+    $("bayValA").textContent = maxParkA;
+    var arrivalsA = trips.filter(function (t) { return t.station === "A"; }).length;
+    $("bayDescA").textContent =
+      "全日 " + arrivalsA + " 班由 " + nameA + " 開出，同一時間最多有 " +
+      maxParkA + " 輛車同時停泊。\n建議設置 " + maxParkA +
+      " 個站坑，即可確保任何時刻都有車位可停。";
+
+    // B 站（循環線時隱藏）
+    if (currentMode === "circular") {
+      $("bayCardB").classList.add("hidden");
+      return;
+    }
+    $("bayCardB").classList.remove("hidden");
+    $("bayLabelB").textContent = nameB;
+    $("bayValB").textContent = maxParkB;
+    var arrivalsB = trips.filter(function (t) { return t.station === "B"; }).length;
+    $("bayDescB").textContent =
+      "全日 " + arrivalsB + " 班由 " + nameB + " 開出，同一時間最多有 " +
+      maxParkB + " 輛車同時停泊。\n建議設置 " + maxParkB +
+      " 個站坑，即可確保任何時刻都有車位可停。";
   }
 
   function renderBuses(busList) {
@@ -802,36 +864,29 @@
       var stn = a.station === "A"
         ? "<span class='badge badge-a'>" + n + "</span>"
         : "<span class='badge badge-b'>" + n + "</span>";
-      var note = a.forced
-        ? "<span class='badge badge-forced'>總站滿</span>"
-        : "";
       var tr = document.createElement("tr");
       tr.innerHTML =
         "<td style='color:#94a3b8'>" + (i + 1) + "</td>" +
         "<td><b>" + fmtTime(a.t) + "</b></td>" +
         "<td>" + stn + "</td>" +
-        "<td><span class='badge " + (isS ? "badge-s" : "badge-r") + "'>" + label + " 車</span></td>" +
-        "<td>" + note + "</td>";
+        "<td><span class='badge " + (isS ? "badge-s" : "badge-r") + "'>" + label + " 車</span></td>";
       frag.appendChild(tr);
     });
     tbody.appendChild(frag);
   }
 
+  /* ============ 主流程 ============ */
   function runCalc() {
     var travelTime = parseFloat($("travelTime").value);
     var sPct = parseFloat($("sThreshold").value);
     var dwellA = parseFloat($("dwellA").value);
-    var capA = parseInt($("capA").value, 10);
     var dwellB = parseFloat($("dwellB").value);
-    var capB = parseInt($("capB").value, 10);
 
     if (!(travelTime > 0)) { alert("請輸入有效的「" + (currentMode === "circular" ? "一圈時間" : "單程時間") + "」（大於 0）。"); return; }
     if (!(sPct > 0 && sPct <= 100)) { alert("請輸入有效的「備用車門檻」（1 – 100）。"); return; }
     if (!(dwellA >= 0)) { alert("請輸入有效的「A 總站停留」（0 或以上）。"); return; }
-    if (!(capA >= 0)) { alert("請輸入有效的「A 總站容量」（0 或以上）。"); return; }
     if (currentMode === "bidirectional") {
       if (!(dwellB >= 0)) { alert("請輸入有效的「B 總站停留」（0 或以上）。"); return; }
-      if (!(capB >= 0)) { alert("請輸入有效的「B 總站容量」（0 或以上）。"); return; }
     }
 
     var trips = buildTrips(bodyA, "A");
@@ -844,7 +899,7 @@
     });
     if (!trips.length) { alert("請至少輸入一個有效的時間段。"); return; }
 
-    var sim = simulate(trips, currentMode, travelTime, dwellA, dwellB, capA, capB);
+    var sim = simulate(trips, currentMode, travelTime, dwellA, dwellB);
     var totalSpan = trips[trips.length - 1].time - trips[0].time;
     var busList = Array.from(sim.busMap.values());
     var cls = classify(busList, totalSpan, sPct);
@@ -854,6 +909,7 @@
     $("statRegular").textContent = cls.regulars.length;
     $("statS").textContent = cls.sBuses.length;
 
+    renderBayCards(sim.maxParkA, sim.maxParkB, trips);
     renderBuses(busList);
     renderTrips(sim.assignments, cls.labelOf);
 
@@ -870,10 +926,12 @@
         modeName: currentMode === "circular" ? "循環線" : "雙向線",
         travelTime: travelTime,
         travelLabel: currentMode === "circular" ? "一圈時間" : "單程時間",
-        dwellA: dwellA, capA: capA,
-        dwellB: dwellB, capB: capB,
+        dwellA: dwellA,
+        dwellB: dwellB,
         sThreshold: sPct,
         totalSpan: totalSpan,
+        maxParkA: sim.maxParkA,
+        maxParkB: sim.maxParkB,
         generatedAt: new Date().toLocaleString("zh-HK")
       },
       summary: {
@@ -903,8 +961,7 @@
           seq: i + 1,
           time: minToTime(a.t),
           station: a.station === "A" ? nameA : nameB,
-          busLabel: cls.labelOf.get(a.busId),
-          forced: a.forced
+          busLabel: cls.labelOf.get(a.busId)
         };
       })
     };
@@ -915,6 +972,7 @@
     }, 60);
   }
 
+  /* ============ 模式切換 ============ */
   function setMode(mode) {
     currentMode = mode;
     var isCirc = mode === "circular";
@@ -936,11 +994,10 @@
       (currentMode === "circular" ? "循環線" : "雙向線") + '</span>';
     $("titleB").innerHTML = nameB + ' <span class="tag">雙向線</span>';
     $("lblDwellA").textContent = nameA + " 總站停留（分鐘）";
-    $("lblCapA").textContent = nameA + " 總站容量（輛）";
     $("lblDwellB").textContent = nameB + " 總站停留（分鐘）";
-    $("lblCapB").textContent = nameB + " 總站容量（輛）";
   }
 
+  /* ============ 導出 ============ */
   var exportModal = $("exportModal");
   var exportTextarea = $("exportTextarea");
   var currentExportFormat = "txt";
@@ -954,15 +1011,18 @@
     L.push("  總站：" + r.meta.nameA + "↔" + r.meta.nameB);
     L.push("  路線模式：" + r.meta.modeName);
     L.push("  " + r.meta.travelLabel + "：" + r.meta.travelTime + " 分鐘");
-    L.push("  " + r.meta.nameA + " 總站：");
-    L.push("    停留：" + r.meta.dwellA + " 分鐘");
-    L.push("    容量：" + r.meta.capA + " 輛");
+    L.push("  " + r.meta.nameA + " 總站停留：" + r.meta.dwellA + " 分鐘");
     if (r.meta.mode === "bidirectional") {
-      L.push("  " + r.meta.nameB + " 總站：");
-      L.push("    停留：" + r.meta.dwellB + " 分鐘");
-      L.push("    容量：" + r.meta.capB + " 輛");
+      L.push("  " + r.meta.nameB + " 總站停留：" + r.meta.dwellB + " 分鐘");
     }
     L.push("  全日營運時間：" + fmtDur(r.meta.totalSpan));
+    L.push("");
+
+    L.push("建議站坑數量");
+    L.push("  " + r.meta.nameA + "：" + r.meta.maxParkA + " 個站坑");
+    if (r.meta.mode === "bidirectional") {
+      L.push("  " + r.meta.nameB + "：" + r.meta.maxParkB + " 個站坑");
+    }
     L.push("");
 
     L.push("統計摘要");
@@ -1000,8 +1060,7 @@
       { title: "#", width: 6 },
       { title: "發車時間", width: 10 },
       { title: "出發站", width: 22 },
-      { title: "派出車輛", width: 10 },
-      { title: "備註", width: 12 }
+      { title: "派出車輛", width: 10 }
     ];
     L.push("  " + tCols.map(function (c) { return padRight(c.title, c.width); }).join(" "));
     sep();
@@ -1010,8 +1069,7 @@
         padLeft(t.seq + ".", tCols[0].width),
         padRight(t.time, tCols[1].width),
         padRight(t.station, tCols[2].width),
-        padRight(t.busLabel + " 車", tCols[3].width),
-        padRight(t.forced ? "（總站滿）" : "", tCols[4].width)
+        padRight(t.busLabel + " 車", tCols[3].width)
       ].join(" "));
     });
     L.push("");
@@ -1038,12 +1096,16 @@
     rows.push(["路線模式", r.meta.modeName]);
     rows.push([r.meta.travelLabel, r.meta.travelTime + " 分鐘"]);
     rows.push([r.meta.nameA + " 總站停留", r.meta.dwellA + " 分鐘"]);
-    rows.push([r.meta.nameA + " 總站容量", r.meta.capA + " 輛"]);
     if (r.meta.mode === "bidirectional") {
       rows.push([r.meta.nameB + " 總站停留", r.meta.dwellB + " 分鐘"]);
-      rows.push([r.meta.nameB + " 總站容量", r.meta.capB + " 輛"]);
     }
     rows.push(["全日營運時間", fmtDur(r.meta.totalSpan)]);
+    rows.push([]);
+    rows.push(["【建議站坑數量】"]);
+    rows.push([r.meta.nameA, r.meta.maxParkA + " 個站坑"]);
+    if (r.meta.mode === "bidirectional") {
+      rows.push([r.meta.nameB, r.meta.maxParkB + " 個站坑"]);
+    }
     rows.push([]);
     rows.push(["【統計摘要】"]);
     rows.push(["總班次", r.summary.totalTrips]);
@@ -1059,10 +1121,9 @@
     });
     rows.push([]);
     rows.push(["【派車表】"]);
-    rows.push(["#", "發車時間", "出發站", "派出車輛", "備註"]);
+    rows.push(["#", "發車時間", "出發站", "派出車輛"]);
     r.trips.forEach(function (t) {
-      rows.push([t.seq, t.time, t.station, t.busLabel + " 車",
-        t.forced ? "總站滿" : ""]);
+      rows.push([t.seq, t.time, t.station, t.busLabel + " 車"]);
     });
     return rows.map(function (row) {
       return row.map(esc).join(",");
@@ -1145,6 +1206,7 @@
     }
   }
 
+  /* ============ 事件處理 ============ */
   function onDocumentClick(e) {
     var target = e.target;
     if (!target || target.nodeType !== 1) {
@@ -1217,6 +1279,7 @@
     }
   }
 
+  /* ============ 初始化 ============ */
   function init() {
     try {
       createRow(bodyA, "05:00", "07:00", 30);
