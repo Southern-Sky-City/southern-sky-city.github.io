@@ -47,7 +47,6 @@
   .card h2.station-a { border-left-color: #16a34a; }
   .card h2.station-b { border-left-color: #a855f7; }
 
-  /* 日曆組 tabs */
   .day-tabs { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 14px; }
   .day-tab {
     display: inline-flex; align-items: center; gap: 6px;
@@ -57,18 +56,12 @@
   }
   .day-tab.on { background: #2563eb; color: #fff; border-color: #2563eb; }
   .day-tab:active { transform: scale(.97); }
-  .day-tab .close-x {
-    background: none; border: none; color: inherit; opacity: .5;
-    font-size: 14px; cursor: pointer; padding: 0; line-height: 1;
-  }
-  .day-tab .close-x:hover { opacity: 1; }
   .day-tab-add {
     padding: 8px 14px; border: 1.5px dashed #bfdbfe; border-radius: 20px;
     background: #eff6ff; color: #2563eb; font-size: 13.5px; font-weight: 600;
     cursor: pointer; transition: all .15s;
   }
   .day-tab-add:active { transform: scale(.97); }
-
   .day-actions { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 10px; }
 
   .mode-switch { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
@@ -190,6 +183,7 @@
   .badge-s { background: #fff7ed; color: #ea580c; border: 1px solid #fed7aa; }
   .badge-a { background: #f0fdf4; color: #16a34a; border: 1px solid #bbf7d0; }
   .badge-b { background: #fdf4ff; color: #a855f7; border: 1px solid #e9d5ff; }
+  .badge-miss { background: #f8fafc; color: #cbd5e1; border: 1px solid #e2e8f0; }
 
   .max-h { max-height: 430px; overflow-y: auto; -webkit-overflow-scrolling: touch; }
 
@@ -276,6 +270,9 @@
     color: #2563eb; letter-spacing: .5px;
   }
 
+  .fleet-table th, .fleet-table td { font-size: 13px; white-space: nowrap; }
+  .fleet-table .miss { color: #cbd5e1; font-style: italic; }
+
   @media (max-width: 660px) {
     .params, .params-3 { grid-template-columns: 1fr; gap: 12px; }
     .stats { grid-template-columns: repeat(2, 1fr); }
@@ -343,10 +340,9 @@
     </div>
   </div>
 
-
   <!-- 基本參數 -->
   <div class="card">
-    <h2>基本參數</h2>
+    <h2>基本參數 <span class="tag" id="paramTag">當前日曆組</span></h2>
     <div class="params">
       <div class="field">
         <label id="lblTravel">單程時間（分鐘）</label>
@@ -430,7 +426,12 @@
   <!-- 結果 -->
   <div id="result" class="hidden">
     <div class="card">
-      <h2>計算結果</h2>
+      <h2>跨日曆組車輛分類</h2>
+      <div id="fleetSummary"></div>
+    </div>
+
+    <div class="card">
+      <h2>各日曆組詳細結果</h2>
       <div id="resultBody"></div>
     </div>
 
@@ -450,7 +451,7 @@
       4. 按「📋 批量導入」按鈕，彈出窗口貼上時間表（每行 <code>0500-0700@30</code>）。<br>
       5. 每個總站的最後一個時段會包含結束時間那一班；中間時段不重複。<br>
       6. 程式會模擬全日派車，並統計每個總站「同一時間最多有幾輛車同時停泊」→ 建議站坑數量。<br>
-      7. 按「開始計算」會計算所有日曆組，結果一次列出。<br>
+      7. <b>跨日曆組車輛分類</b>：同一編號視為同一架實體車。只要<b>任何一個日曆組</b>的活躍時間達標，即為正軌車；否則為備用車（S1、S2…）。<br>
       8. 所有資料（路線資料 + 所有日曆組）自動儲存在瀏覽器，關掉再開會保留。
     </div>
   </div>
@@ -519,7 +520,7 @@
   "use strict";
   function $(id) { return document.getElementById(id); }
 
-  var STORAGE_KEY = "tnb_fleet_v2";
+  var STORAGE_KEY = "tnb_fleet_v3";
 
   /* ================= 工具 ================= */
   function timeToMin(str) {
@@ -570,12 +571,19 @@
   var bodyB = null;
   var currentMode = "bidirectional";
 
-  function defaultPeriods() {
+  function defaultPeriodsA() {
     return [
       { start: "05:00", end: "07:00", gap: 30 },
       { start: "07:00", end: "10:00", gap: 20 },
       { start: "10:00", end: "15:00", gap: 15 },
       { start: "15:00", end: "19:00", gap: 20 },
+      { start: "19:00", end: "01:00", gap: 30 }
+    ];
+  }
+  function defaultPeriodsB() {
+    return [
+      { start: "05:30", end: "07:00", gap: 30 },
+      { start: "07:00", end: "19:00", gap: 20 },
       { start: "19:00", end: "01:00", gap: 30 }
     ];
   }
@@ -588,12 +596,8 @@
       dwellB: 10,
       sThreshold: 50,
       mode: "bidirectional",
-      periodsA: defaultPeriods(),
-      periodsB: [
-        { start: "05:30", end: "07:00", gap: 30 },
-        { start: "07:00", end: "19:00", gap: 20 },
-        { start: "19:00", end: "01:00", gap: 30 }
-      ]
+      periodsA: defaultPeriodsA(),
+      periodsB: defaultPeriodsB()
     };
   }
 
@@ -676,6 +680,7 @@
     $("dwellA").value = day.dwellA;
     $("dwellB").value = day.dwellB;
     $("sThreshold").value = day.sThreshold;
+    $("paramTag").textContent = day.name;
 
     document.querySelectorAll("input[name='mode']").forEach(function (r) {
       r.checked = (r.value === day.mode);
@@ -728,7 +733,6 @@
 
   function switchDay(idx) {
     if (idx < 0 || idx >= state.days.length) return;
-    // 先把目前 UI 的參數寫回舊組
     commitCurrentDay();
     state.activeDay = idx;
     renderDayTabs();
@@ -937,24 +941,7 @@
     };
   }
 
-  function classify(busList, totalSpan, thresholdPct) {
-    var limit = totalSpan * (thresholdPct / 100);
-    busList.forEach(function (b) {
-      b.span = b.last - b.first;
-      b.isS = totalSpan > 0 && b.span < limit;
-    });
-    var regs = busList.filter(function (b) { return !b.isS; })
-                      .sort(function (a, b) { return a.first - b.first || a.id - b.id; });
-    var ss = busList.filter(function (b) { return b.isS; })
-                    .sort(function (a, b) { return a.first - b.first || a.id - b.id; });
-    regs.forEach(function (b, i) { b.label = String(i + 1); });
-    ss.forEach(function (b, i) { b.label = "S" + (i + 1); });
-    var labelOf = new Map();
-    busList.forEach(function (b) { labelOf.set(b.id, b.label); });
-    return { regulars: regs, sBuses: ss, labelOf: labelOf };
-  }
-
-  /* ================= 計算 ================= */
+  /* ================= 計算（各組獨立） ================= */
   function calcDay(day) {
     var tripsA = buildTrips(day.periodsA, "A");
     var trips = tripsA;
@@ -970,19 +957,103 @@
     var sim = simulate(trips, day.mode, day.travelTime, day.dwellA, day.dwellB);
     var totalSpan = trips[trips.length - 1].time - trips[0].time;
     var busList = Array.from(sim.busMap.values());
-    var cls = classify(busList, totalSpan, day.sThreshold);
+
+    // 各車的活躍時間
+    busList.forEach(function (b) {
+      b.span = b.last - b.first;
+    });
 
     return {
       day: day,
       trips: trips,
       totalSpan: totalSpan,
       busList: busList,
-      cls: cls,
       maxParkA: sim.maxParkA,
       maxParkB: sim.maxParkB,
       assignments: sim.assignments
     };
   }
+
+  /* ================= 跨日曆組分類 =================
+     規則：同一編號 = 同一架實體車。
+     只要「任何一個日曆組」該車活躍時間 >= 該組總營運 * 門檻 → 正軌車
+  */
+  function classifyFleet(results) {
+    // 找出最大車號
+    var maxId = 0;
+    results.forEach(function (r) {
+      r.busList.forEach(function (b) {
+        if (b.id > maxId) maxId = b.id;
+      });
+    });
+
+    var fleet = [];  // 每架實體車 { id, perDay: [{ dayName, span, tripCount, threshold, met }], isRegular }
+
+    for (var id = 1; id <= maxId; id++) {
+      var entry = { id: id, perDay: [], isRegular: false };
+      results.forEach(function (r) {
+        var bus = null;
+        for (var i = 0; i < r.busList.length; i++) {
+          if (r.busList[i].id === id) { bus = r.busList[i]; break; }
+        }
+        if (bus) {
+          var limit = r.totalSpan * (r.day.sThreshold / 100);
+          var met = r.totalSpan > 0 && bus.span >= limit;
+          entry.perDay.push({
+            dayName: r.day.name,
+            span: bus.span,
+            spanText: fmtDur(bus.span),
+            tripCount: bus.count,
+            totalSpan: r.totalSpan,
+            threshold: r.day.sThreshold,
+            met: met
+          });
+          if (met) entry.isRegular = true;
+        } else {
+          entry.perDay.push({
+            dayName: r.day.name,
+            span: 0,
+            spanText: "—",
+            tripCount: 0,
+            totalSpan: r.totalSpan,
+            threshold: r.day.sThreshold,
+            met: false,
+            missing: true
+          });
+        }
+      });
+      fleet.push(entry);
+    }
+
+    // 重新編號：正軌 1,2,3…；備用 S1,S2…
+    var regCount = 0, sCount = 0;
+    fleet.forEach(function (entry) {
+      if (entry.isRegular) {
+        regCount++;
+        entry.label = String(regCount);
+        entry.type = "正軌車";
+      } else {
+        sCount++;
+        entry.label = "S" + sCount;
+        entry.type = "備用車";
+      }
+    });
+
+    return {
+      fleet: fleet,
+      regularCount: regCount,
+      sCount: sCount,
+      labelMap: (function () {
+        var m = new Map();
+        fleet.forEach(function (e) { m.set(e.id, e.label); });
+        return m;
+      })()
+    };
+  }
+
+  /* ================= 主計算 ================= */
+  var lastResults = null;
+  var lastFleet = null;
 
   function runCalc() {
     commitCurrentDay();
@@ -999,7 +1070,12 @@
       return;
     }
 
-    renderResults(results);
+    var fleet = classifyFleet(results);
+    lastResults = results;
+    lastFleet = fleet;
+
+    renderFleetSummary(fleet);
+    renderResults(results, fleet);
 
     $("result").classList.remove("hidden");
     setTimeout(function () {
@@ -1007,14 +1083,60 @@
     }, 60);
   }
 
-  /* ================= 渲染結果 ================= */
-  var lastResults = null;
-
-  function renderResults(results) {
-    lastResults = results;
-    var wrap = $("resultBody");
+  /* ================= 渲染 ================= */
+  function renderFleetSummary(fleet) {
+    var wrap = $("fleetSummary");
     wrap.innerHTML = "";
 
+    var nameA = $("nameA").value.trim() || "A 總站";
+    var nameB = $("nameB").value.trim() || "B 總站";
+    var dayNames = lastResults.map(function (r) { return r.day.name; });
+
+    var html = '<div class="stats" style="margin-bottom:14px">' +
+      '<div class="stat"><div class="stat-label">日曆組數</div><div class="stat-val">' + lastResults.length + '</div></div>' +
+      '<div class="stat"><div class="stat-label">實體車總數</div><div class="stat-val">' + fleet.fleet.length + '</div></div>' +
+      '<div class="stat"><div class="stat-label">正軌車</div><div class="stat-val blue">' + fleet.regularCount + '</div></div>' +
+      '<div class="stat"><div class="stat-label">備用車</div><div class="stat-val orange">' + fleet.sCount + '</div></div>' +
+      '</div>';
+
+    html += '<div class="tbl-scroll"><table class="fleet-table"><thead><tr>';
+    html += '<th>車輛</th><th>類型</th>';
+    dayNames.forEach(function (n) { html += '<th>' + n + '</th>'; });
+    html += '<th>總班次</th></tr></thead><tbody>';
+
+    fleet.fleet.forEach(function (e) {
+      html += '<tr>';
+      html += '<td><b>' + e.label + ' 車</b></td>';
+      html += '<td>' + (e.isRegular
+        ? '<span class="badge badge-r">正軌車</span>'
+        : '<span class="badge badge-s">備用車</span>') + '</td>';
+      var totalTrips = 0;
+      e.perDay.forEach(function (p) {
+        totalTrips += p.tripCount;
+        if (p.missing) {
+          html += '<td class="miss">—</td>';
+        } else if (p.met) {
+          html += '<td><span style="color:#16a34a;font-weight:600">✓ ' + p.spanText + '</span></td>';
+        } else {
+          html += '<td>' + p.spanText + '</td>';
+        }
+      });
+      html += '<td>' + totalTrips + '</td>';
+      html += '</tr>';
+    });
+
+    html += '</tbody></table></div>';
+    html += '<div class="note" style="margin-top:12px">' +
+      '✓ 表示該日曆組活躍時間達標（≥ 全日營運時間 × 門檻）。' +
+      '只要任何一組達標，即為正軌車；其餘為備用車。' +
+      '「—」表示該日曆組未派出此編號的車。</div>';
+
+    wrap.innerHTML = html;
+  }
+
+  function renderResults(results, fleet) {
+    var wrap = $("resultBody");
+    wrap.innerHTML = "";
     var nameA = $("nameA").value.trim() || "A 總站";
     var nameB = $("nameB").value.trim() || "B 總站";
 
@@ -1037,23 +1159,36 @@
           '</div>';
       }
 
-      // 統計
+      // 統計（該日曆組）
+      var regInDay = 0, sInDay = 0;
+      r.busList.forEach(function (b) {
+        var isReg = false;
+        fleet.fleet.forEach(function (e) {
+          if (e.id === b.id && e.isRegular) isReg = true;
+        });
+        if (isReg) regInDay++; else sInDay++;
+      });
+
       html += '<div class="stats" style="margin-top:14px">' +
         '<div class="stat"><div class="stat-label">總班次</div><div class="stat-val">' + r.trips.length + '</div></div>' +
-        '<div class="stat"><div class="stat-label">總用車</div><div class="stat-val">' + r.busList.length + '</div></div>' +
-        '<div class="stat"><div class="stat-label">正軌車</div><div class="stat-val blue">' + r.cls.regulars.length + '</div></div>' +
-        '<div class="stat"><div class="stat-label">備用車</div><div class="stat-val orange">' + r.cls.sBuses.length + '</div></div>' +
+        '<div class="stat"><div class="stat-label">該日用車</div><div class="stat-val">' + r.busList.length + '</div></div>' +
+        '<div class="stat"><div class="stat-label">正軌車</div><div class="stat-val blue">' + regInDay + '</div></div>' +
+        '<div class="stat"><div class="stat-label">備用車</div><div class="stat-val orange">' + sInDay + '</div></div>' +
         '</div>';
 
-      // 用車總結
-      html += '<h3 style="margin-top:18px">用車總結</h3>';
+      // 用車總結（該日曆組，顯示跨組編號）
+      html += '<h3 style="margin-top:18px">該日用車（顯示跨日曆組編號）</h3>';
       html += '<div class="tbl-scroll"><table><thead><tr>' +
         '<th>車輛</th><th>類型</th><th>首次出場</th><th>末次出場</th><th>活躍時間</th><th>班次數</th>' +
         '</tr></thead><tbody>';
       r.busList.slice().sort(function (a, b) {
-        if (a.isS !== b.isS) return a.isS ? 1 : -1;
         return a.first - b.first || a.id - b.id;
       }).forEach(function (b) {
+        var label = fleet.labelMap.get(b.id);
+        var isReg = false;
+        fleet.fleet.forEach(function (e) {
+          if (e.id === b.id && e.isRegular) isReg = true;
+        });
         var stn = function (s) {
           var n = s === "A" ? nameA : nameB;
           return s === "A"
@@ -1061,10 +1196,10 @@
             : "<span class='badge badge-b'>" + n + "</span>";
         };
         html += '<tr>' +
-          '<td><b>' + b.label + ' 車</b></td>' +
-          '<td>' + (b.isS
-            ? '<span class="badge badge-s">備用車</span>'
-            : '<span class="badge badge-r">正軌車</span>') + '</td>' +
+          '<td><b>' + label + ' 車</b></td>' +
+          '<td>' + (isReg
+            ? '<span class="badge badge-r">正軌車</span>'
+            : '<span class="badge badge-s">備用車</span>') + '</td>' +
           '<td>' + fmtTime(b.first) + ' ' + stn(b.firstStation) + '</td>' +
           '<td>' + fmtTime(b.last) + ' ' + stn(b.lastStation) + '</td>' +
           '<td>' + fmtDur(b.span) + '</td>' +
@@ -1079,8 +1214,11 @@
         '<th>#</th><th>發車時間</th><th>出發站</th><th>派出車輛</th>' +
         '</tr></thead><tbody>';
       r.assignments.forEach(function (a, i) {
-        var label = r.cls.labelOf.get(a.busId);
-        var isS = String(label).charAt(0) === "S";
+        var label = fleet.labelMap.get(a.busId);
+        var isReg = false;
+        fleet.fleet.forEach(function (e) {
+          if (e.id === a.busId && e.isRegular) isReg = true;
+        });
         var n = a.station === "A" ? nameA : nameB;
         var stn = a.station === "A"
           ? "<span class='badge badge-a'>" + n + "</span>"
@@ -1089,7 +1227,7 @@
           '<td style="color:#94a3b8">' + (i + 1) + '</td>' +
           '<td><b>' + fmtTime(a.t) + '</b></td>' +
           '<td>' + stn + '</td>' +
-          '<td><span class="badge ' + (isS ? "badge-s" : "badge-r") + '">' + label + ' 車</span></td>' +
+          '<td><span class="badge ' + (isReg ? "badge-r" : "badge-s") + '">' + label + ' 車</span></td>' +
           '</tr>';
       });
       html += '</tbody></table></div>';
@@ -1105,7 +1243,7 @@
   var currentExportFormat = "txt";
 
   function buildExportTxt() {
-    if (!lastResults) return "";
+    if (!lastResults || !lastFleet) return "";
     var nameA = $("nameA").value.trim() || "A 總站";
     var nameB = $("nameB").value.trim() || "B 總站";
     var routeNo = $("routeNo").value.trim() || "—";
@@ -1121,6 +1259,32 @@
     L.push("════════════════════════════════════════");
     L.push("");
 
+    // 跨日曆組車輛分類
+    L.push("【跨日曆組車輛分類】");
+    L.push("  日曆組數：" + lastResults.length);
+    L.push("  實體車總數：" + lastFleet.fleet.length);
+    L.push("  正軌車：" + lastFleet.regularCount);
+    L.push("  備用車：" + lastFleet.sCount);
+    L.push("");
+    L.push("  車輛 | 類型 | " + lastResults.map(function (r) { return r.day.name; }).join(" | ") + " | 總班次");
+    sep();
+
+    lastFleet.fleet.forEach(function (e) {
+      var totalTrips = 0;
+      var cols = e.perDay.map(function (p) {
+        totalTrips += p.tripCount;
+        if (p.missing) return "—";
+        if (p.met) return "✓ " + p.spanText;
+        return p.spanText;
+      });
+      L.push("  " + padRight(e.label + " 車", 8) + " | " +
+             padRight(e.type, 6) + " | " +
+             cols.map(function (c) { return padRight(c, 14); }).join(" | ") +
+             " | " + totalTrips);
+    });
+    L.push("");
+
+    // 各日曆組詳細
     lastResults.forEach(function (r, idx) {
       var day = r.day;
       if (idx > 0) { L.push(""); sep(); L.push(""); }
@@ -1145,14 +1309,12 @@
 
       L.push("統計摘要");
       L.push("  總班次：" + r.trips.length);
-      L.push("  總用車：" + r.busList.length);
-      L.push("  正軌車：" + r.cls.regulars.length);
-      L.push("  備用車：" + r.cls.sBuses.length);
+      L.push("  該日用車：" + r.busList.length);
       L.push("");
 
-      L.push("用車總結");
+      L.push("該日用車（顯示跨日曆組編號）");
       var bCols = [
-        { title: "車輛", width: 10 },
+        { title: "車輛", width: 8 },
         { title: "類型", width: 8 },
         { title: "首次出場", width: 22 },
         { title: "末次出場", width: 22 },
@@ -1162,14 +1324,18 @@
       L.push("  " + bCols.map(function (c) { return padRight(c.title, c.width); }).join(" "));
       sep();
       r.busList.slice().sort(function (a, b) {
-        if (a.isS !== b.isS) return a.isS ? 1 : -1;
         return a.first - b.first || a.id - b.id;
       }).forEach(function (b) {
+        var label = lastFleet.labelMap.get(b.id);
+        var isReg = false;
+        lastFleet.fleet.forEach(function (e) {
+          if (e.id === b.id && e.isRegular) isReg = true;
+        });
         var fs = b.firstStation === "A" ? nameA : nameB;
         var ls = b.lastStation === "A" ? nameA : nameB;
         L.push("  " + [
-          padRight(b.label + " 車", bCols[0].width),
-          padRight(b.isS ? "備用車" : "正軌車", bCols[1].width),
+          padRight(label + " 車", bCols[0].width),
+          padRight(isReg ? "正軌車" : "備用車", bCols[1].width),
           padRight(minToTime(b.first) + "@" + fs, bCols[2].width),
           padRight(minToTime(b.last) + "@" + ls, bCols[3].width),
           padRight(fmtDur(b.span), bCols[4].width),
@@ -1188,7 +1354,7 @@
       L.push("  " + tCols.map(function (c) { return padRight(c.title, c.width); }).join(" "));
       sep();
       r.assignments.forEach(function (a, i) {
-        var label = r.cls.labelOf.get(a.busId);
+        var label = lastFleet.labelMap.get(a.busId);
         var n = a.station === "A" ? nameA : nameB;
         L.push("  " + [
           padLeft((i + 1) + ".", tCols[0].width),
@@ -1206,7 +1372,7 @@
   }
 
   function buildExportCsv() {
-    if (!lastResults) return "";
+    if (!lastResults || !lastFleet) return "";
     function esc(v) {
       var s = String(v == null ? "" : v);
       if (s.indexOf(",") >= 0 || s.indexOf("\"") >= 0 || s.indexOf("\n") >= 0) {
@@ -1223,6 +1389,33 @@
     rows.push(["總站", nameA + "↔" + nameB]);
     rows.push([]);
 
+    // 跨日曆組分類
+    rows.push(["【跨日曆組車輛分類】"]);
+    rows.push(["日曆組數", lastResults.length]);
+    rows.push(["實體車總數", lastFleet.fleet.length]);
+    rows.push(["正軌車", lastFleet.regularCount]);
+    rows.push(["備用車", lastFleet.sCount]);
+    rows.push([]);
+    var fleetHeader = ["車輛", "類型"];
+    lastResults.forEach(function (r) { fleetHeader.push(r.day.name); });
+    fleetHeader.push("總班次");
+    rows.push(fleetHeader);
+
+    lastFleet.fleet.forEach(function (e) {
+      var row = [e.label + " 車", e.type];
+      var totalTrips = 0;
+      e.perDay.forEach(function (p) {
+        totalTrips += p.tripCount;
+        if (p.missing) row.push("—");
+        else if (p.met) row.push("✓ " + p.spanText);
+        else row.push(p.spanText);
+      });
+      row.push(totalTrips);
+      rows.push(row);
+    });
+    rows.push([]);
+
+    // 各日曆組
     lastResults.forEach(function (r) {
       var day = r.day;
       rows.push(["【" + day.name + "】"]);
@@ -1237,20 +1430,22 @@
         rows.push(["建議 " + nameB + " 站坑", r.maxParkB]);
       }
       rows.push(["總班次", r.trips.length]);
-      rows.push(["總用車", r.busList.length]);
-      rows.push(["正軌車", r.cls.regulars.length]);
-      rows.push(["備用車", r.cls.sBuses.length]);
+      rows.push(["該日用車", r.busList.length]);
       rows.push([]);
       rows.push(["車輛", "類型", "首次出場", "末次出場", "活躍時間", "班次數"]);
       r.busList.slice().sort(function (a, b) {
-        if (a.isS !== b.isS) return a.isS ? 1 : -1;
         return a.first - b.first || a.id - b.id;
       }).forEach(function (b) {
+        var label = lastFleet.labelMap.get(b.id);
+        var isReg = false;
+        lastFleet.fleet.forEach(function (e) {
+          if (e.id === b.id && e.isRegular) isReg = true;
+        });
         var fs = b.firstStation === "A" ? nameA : nameB;
         var ls = b.lastStation === "A" ? nameA : nameB;
         rows.push([
-          b.label + " 車",
-          b.isS ? "備用車" : "正軌車",
+          label + " 車",
+          isReg ? "正軌車" : "備用車",
           minToTime(b.first) + "@" + fs,
           minToTime(b.last) + "@" + ls,
           fmtDur(b.span),
@@ -1260,7 +1455,7 @@
       rows.push([]);
       rows.push(["#", "發車時間", "出發站", "派出車輛"]);
       r.assignments.forEach(function (a, i) {
-        var label = r.cls.labelOf.get(a.busId);
+        var label = lastFleet.labelMap.get(a.busId);
         var n = a.station === "A" ? nameA : nameB;
         rows.push([i + 1, minToTime(a.t), n, label + " 車"]);
       });
@@ -1273,7 +1468,7 @@
   }
 
   function buildExportJson() {
-    if (!lastResults) return "";
+    if (!lastResults || !lastFleet) return "";
     var nameA = $("nameA").value.trim() || "A 總站";
     var nameB = $("nameB").value.trim() || "B 總站";
     var out = {
@@ -1281,6 +1476,23 @@
       nameA: nameA,
       nameB: nameB,
       generatedAt: new Date().toLocaleString("zh-HK"),
+      fleet: lastFleet.fleet.map(function (e) {
+        return {
+          label: e.label,
+          type: e.type,
+          isRegular: e.isRegular,
+          perDay: e.perDay.map(function (p) {
+            return {
+              dayName: p.dayName,
+              spanText: p.spanText,
+              spanMin: p.span,
+              tripCount: p.tripCount,
+              met: p.met,
+              missing: !!p.missing
+            };
+          })
+        };
+      }),
       days: lastResults.map(function (r) {
         var day = r.day;
         return {
@@ -1296,15 +1508,18 @@
           maxParkB: r.maxParkB,
           totalTrips: r.trips.length,
           totalBuses: r.busList.length,
-          regularCount: r.cls.regulars.length,
-          sCount: r.cls.sBuses.length,
           buses: r.busList.slice().sort(function (a, b) {
-            if (a.isS !== b.isS) return a.isS ? 1 : -1;
             return a.first - b.first || a.id - b.id;
           }).map(function (b) {
             return {
-              label: b.label,
-              type: b.isS ? "備用車" : "正軌車",
+              label: lastFleet.labelMap.get(b.id),
+              type: (function () {
+                var reg = false;
+                lastFleet.fleet.forEach(function (e) {
+                  if (e.id === b.id && e.isRegular) reg = true;
+                });
+                return reg ? "正軌車" : "備用車";
+              })(),
               firstTime: minToTime(b.first),
               firstStation: b.firstStation === "A" ? nameA : nameB,
               lastTime: minToTime(b.last),
@@ -1319,7 +1534,7 @@
               seq: i + 1,
               time: minToTime(a.t),
               station: a.station === "A" ? nameA : nameB,
-              busLabel: r.cls.labelOf.get(a.busId)
+              busLabel: lastFleet.labelMap.get(a.busId)
             };
           })
         };
@@ -1407,7 +1622,6 @@
     if (!target || typeof target.closest !== "function") return;
 
     try {
-      // 日曆組 tab
       var tabEl = target.closest("[data-day-index]");
       if (tabEl) {
         var idx = parseInt(tabEl.getAttribute("data-day-index"), 10);
@@ -1415,7 +1629,6 @@
         return;
       }
 
-      // 刪除行
       var delBtn = target.closest("[data-action='del-row']");
       if (delBtn) {
         var tr = delBtn.closest("tr");
@@ -1430,7 +1643,6 @@
         return;
       }
 
-      // 新增行
       var addBtn = target.closest("[data-add]");
       if (addBtn) {
         var which = addBtn.getAttribute("data-add");
@@ -1443,14 +1655,12 @@
         return;
       }
 
-      // 批量導入
       var importBtn = target.closest("[data-import]");
       if (importBtn) {
         openImportModal(importBtn.getAttribute("data-import"));
         return;
       }
 
-      // 導出格式
       var optEl = target.closest(".export-opt");
       if (optEl) {
         switchExportFormat(optEl.getAttribute("data-fmt"));
@@ -1482,6 +1692,7 @@
         if (!newName) return;
         day.name = newName;
         renderDayTabs();
+        $("paramTag").textContent = newName;
         saveState();
         return;
       }
@@ -1514,6 +1725,7 @@
         saveState();
         $("result").classList.add("hidden");
         lastResults = null;
+        lastFleet = null;
         return;
       }
 
@@ -1558,7 +1770,6 @@
       renderParams();
       renderPeriods();
 
-      // 共用欄位變更 → 儲存
       ["routeNo", "nameA", "nameB"].forEach(function (id) {
         var el = $(id);
         if (el) {
@@ -1572,7 +1783,6 @@
         }
       });
 
-      // 當前組參數變更 → 儲存
       ["travelTime", "dwellA", "dwellB", "sThreshold"].forEach(function (id) {
         var el = $(id);
         if (el) {
@@ -1583,7 +1793,6 @@
         }
       });
 
-      // 時間表變更 → 儲存
       [bodyA, bodyB].forEach(function (c) {
         c.addEventListener("input", function () {
           commitCurrentDay();
